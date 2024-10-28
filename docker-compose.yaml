@@ -3,6 +3,7 @@ version: '3.8'
 x-common-geoserver: 
   &x-common-geoserver
   image: ndscprm/geoserver:2.24.4
+  platform: linux/amd64
   networks:
     - default
 
@@ -27,8 +28,9 @@ x-common-geoserver-env:
 services:
   proxy:
     image: nginxinc/nginx-unprivileged:1.25.5
-    ports: 
-      - 8080:8080
+    platform: linux/amd64
+    # ports: 
+    #   - 8080:8080
     networks:
       - default
     volumes:
@@ -36,38 +38,46 @@ services:
 
   master:
     <<: *x-common-geoserver
-    #ports:
-    #  - 8080:8080
+    ports:
+     - 8080:8080
     volumes:
       - "master:/srv/geoserver/data"
       - "./cluster/conf/master:/srv/geoserver/cluster"
+      # - "./cluster/conf/master/cluster.properties:/srv/geoserver/cluster/cluster.properties"
+      - "./data:/data"
     environment:
       <<: *x-common-geoserver-env
       GEOSERVER_NODE_OPTS: id:MASTER;background:red;color:white
-      PROXY_BASE_URL: http://localhost:8080/gsadmin
+      PROXY_BASE_URL: http://localhost:8080/geoserver
       GEOSERVER_CSRF_DISABLED: true
 
   broker:
     image: apache/activemq-classic:6.1.2
+    platform: linux/amd64
     ports:
       - 8161:8161
       # - 1099:1099
     volumes: 
-      - ./activemq/activemq.conf:/opt/apache-activemq/conf/activemq.conf
+      - ./activemq/activemq.xml:/opt/apache-activemq/conf/activemq.xml
     networks:
       - default
 
   slave:
     <<: *x-common-geoserver
-    # ports:
-    #   - 8081:8080
+    ports:
+      - 8081:8080
     volumes:
       - "slave:/srv/geoserver/data"
       - "./cluster/conf/slave:/srv/geoserver/cluster"
+     # - "./cluster/conf/slave/cluster.properties:/srv/geoserver/cluster/cluster.properties"
+      - "./data:/data"
     environment:
       <<: *x-common-geoserver-env
       GEOSERVER_NODE_OPTS: id:SLAVE;background:black;color:white 
-      PROXY_BASE_URL: http://localhost:8080/geoserver
+      PROXY_BASE_URL: http://localhost:8081/geoserver
+      GEOSERVER_CONSOLE_DISABLED: true
+    depends_on:
+      - master
 
 networks:
   default:
